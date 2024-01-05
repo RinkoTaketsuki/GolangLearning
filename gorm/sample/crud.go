@@ -147,10 +147,12 @@ func FindExamples(config *gorm.Session) {
 
 	firstUser := model.User{}
 	// SELECT * FROM `users` WHERE `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1
+	// 模型有主键约束时，使用主键排序，否则使用第一个列排序
 	db.First(&firstUser)
 
 	lastUser := model.User{}
 	// SELECT * FROM `users` WHERE `users`.`deleted_at` IS NULL ORDER BY `users`.`id` DESC LIMIT 1
+	// 模型有主键约束时，使用主键排序，否则使用第一个列排序
 	db.Last(&lastUser)
 
 	user1 := model.User{}
@@ -160,4 +162,86 @@ func FindExamples(config *gorm.Session) {
 	user2 := model.User{}
 	// 等价于 Take()；若不加 Limit，Find 会进行全表扫描但只返回第一个结果
 	db.Limit(1).Find(&user2)
+
+	// 使用 map 接收 First、Last、Take 的结果，基于 Model 方法传入的模型排序
+	firstUserMap := make(map[string]any)
+	db.Model(new(model.User)).First(&firstUserMap)
+	lastUserMap := make(map[string]any)
+	db.Model(new(model.User)).Last(&lastUserMap)
+	userMap1 := make(map[string]any)
+	db.Model(new(model.User)).Take(&userMap1)
+
+	// 指定 Table 而不指定 Model 时，Take 可以正常工作，但 First 和 Last 会无法排序
+	userMap2 := make(map[string]any)
+	db.Table("users").Take(&userMap2)
+
+	// 指定主键查找
+	id10User1 := model.User{}
+	db.First(&id10User1, 10)
+	id10User2 := model.User{}
+	db.First(&id10User2, "10")
+	id10User3 := model.User{Model: gorm.Model{ID: 10}}
+	db.First(&id10User3)
+	id10User4 := model.User{}
+	db.Model(&model.User{Model: gorm.Model{ID: 10}}).First(&id10User4)
+
+	utils.PrintBlock("*** Select all objects ***")
+
+	allUsers1 := make([]model.User, 0)
+	db.Find(&allUsers1)
+
+	allUsers2 := make([]model.User, 0)
+	// 与 CreateExamples 示例中的 Select 含义类似
+	db.Select("name", "phone").Find(&allUsers2)
+
+	allUsers3 := make([]model.User, 0)
+	db.Select("COALESCE(phone,?)", 999).Find(&allUsers3)
+
+	allUsers4 := make([]model.User, 0)
+	db.Limit(-1).Find(&allUsers4)
+
+	orderedAllUsers1 := make([]model.User, 0)
+	db.Order("phone desc, name").Find(&orderedAllUsers1)
+
+	orderedAllUsers2 := make([]model.User, 0)
+	db.Order("phone desc").Order("name").Find(&orderedAllUsers2)
+
+	orderedAllUsers3 := make([]model.User, 0)
+	db.Clauses(clause.OrderBy{
+		Expression: clause.Expr{
+			SQL:                "FIELD(id,?)",
+			Vars:               []interface{}{[]int{1, 2, 3}},
+			WithoutParentheses: true,
+		},
+	}).Find(&orderedAllUsers3)
+
+	utils.PrintBlock("*** Select filtered objects ***")
+
+	id123Users := make([]model.User, 0)
+	// 使用 IN 表达式查询
+	db.Where([]int{1, 2, 3}).Find(&id123Users)
+
+	filteredUsers1 := make([]model.User, 0)
+	// 如果 db 指定了参数非零的 Model 或 Find 内模型包含非零参数，这些参数会以 AND 运算符与 WHERE 条件连接
+	// 多个 Where 方法可以串联，同样使用 AND 运算符连接
+	// 以下 Where 方法中输入的参数同样可作为 Find、First、Last、Take 的 conds 参数
+	// Not 方法与 Where 类似，只不过会在整个条件上加 NOT 运算符
+	// Or 方法与 Where 类似，只不过与其他 Where 方法串联时使用 OR 运算符
+	// Having 方法与 Where 类似
+	db.Where("name LIKE ? OR phone = ?", "%Alice%", 110).Find(&filteredUsers1)
+
+	filteredUsers2 := make([]model.User, 0)
+	// Where 接收结构体指针参数
+	db.Where(&model.User{Phone: 110}).Find(&filteredUsers2)
+
+	filteredUsers3 := make([]model.User, 0)
+	// Where 接收 map 参数，相比结构体，map 可以查询某一列为零的情况
+	db.Where(map[string]any{"phone": 110}).Find(&filteredUsers3)
+
+	filteredUsers4 := make([]model.User, 0)
+	// Where 接收结构体指针参数时，可以指定查询哪几列，可用于查询零值
+	db.Where(&model.User{Name: "Alice"}, "name", "phone").Find(&filteredUsers4)
+
+	threeUsers := make([]model.User, 0)
+	db.Offset(2).Limit(3).Find(&threeUsers)
 }

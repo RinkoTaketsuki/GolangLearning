@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 
-	"github.com/RinkoTaketsuki/GolangLearning/sql_example/sample"
 	"github.com/RinkoTaketsuki/GolangLearning/sql_example/utils"
 
 	// 匿名 import 需要使用的驱动，一是为了执行其中的 init 函数，二是将驱动注册到 database/sql 包
@@ -39,14 +38,15 @@ func main() {
 	// Open 并不会创建到数据库服务器的连接，连接行为会推迟到第一次需要连接时
 	// 请勿频繁进行 Open 和 Close，这容易导致一些网络故障，应该在自己的业务逻辑中传递 *sql.DB
 	// sql 内置的连接错误处理机制通常可以使我们无须考虑连接中断的问题，一般会重试 10 次连接
-	db, err := sql.Open("mysql", "root:123456@tcp(localhost:3306)/test")
+	db, err := sql.Open("mysql", "sysdba:transwarp@tcp(localhost:15307)/test")
 	utils.ErrHandler(err)
 	defer db.Close()
 	// 如果需要立即建立连接可使用 Ping()，该函数会检查输入的 dataSourceName 是否可用
 	utils.ErrHandler(db.Ping())
 	utilsDB := (*utils.DB)(db)
-	sample.CreateSampleTableAndImportSampleData(utilsDB)
-	sample.SampleCRUD(utilsDB)
-	sample.DropSampleTable(utilsDB)
-	utilsDB.QueryResultPrintln(`SELECT * FROM mysql.user WHERE host = ?`, "%")
+	// sample.CreateSampleTableAndImportSampleData(utilsDB)
+	// sample.SampleCRUD(utilsDB)
+	// sample.DropSampleTable(utilsDB)
+	// utilsDB.QueryResultPrintln("select * from mysql.user where host = ?", "%")
+	utilsDB.QueryResultPrintln("select ConCat(?, 'AbC')", "DeF")
 }
