@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package foo.bar;
+
+option go_package="path/to/mod/path/to/pkg";
+
+message Request {
+    string msg = 1;
+}
